@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import {
     elizaLogger,
     HandlerCallback,
@@ -67,6 +68,14 @@ export const blockchainChatAction: Action = {
         "BLOCKCHAIN_INTERPRETER",
         "BLOCKCHAIN_TRANSACTION_DETAILS",
     ],
+    description:
+        "Call this to read data from the blockchain using natural language: \n" +
+        "1) query and retrieve information for a blockchain network, \n" +
+        "2) retrieve data through a smart contract function given a contract address, \n" +
+        "3) get token price and exchange rate for tokens or cryptocurrencies, \n" +
+        "4) detailed transaction information from the blockchain, \n" +
+        "5) get wallet balances for tokens and NFTs, \n" +
+        "6) resolve ENS name to wallet address",
     validate: async (
         runtime: IAgentRuntime,
         _message: Memory
@@ -76,8 +85,6 @@ export const blockchainChatAction: Action = {
             process.env.THIRDWEB_SECRET_KEY;
         return Boolean(secretKey);
     },
-    description:
-        "Query blockchain data and execute transactions through natural language interaction with the Nebula API",
     handler: async (
         runtime: IAgentRuntime,
         message: Memory,
@@ -125,9 +132,9 @@ export const blockchainChatAction: Action = {
 
                     console.log(parsed.message);
 
-                    await callback({ text: parsed.message });
+                    callback({ text: parsed.message, content: {} });
 
-                    return parsed;
+                    return parsed.message;
                 } catch (parseError) {
                     elizaLogger.error("Parse error details:", parseError);
                     elizaLogger.error(

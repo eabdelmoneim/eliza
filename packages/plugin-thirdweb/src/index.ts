@@ -1,5 +1,6 @@
 import { Plugin } from "@elizaos/core";
 import { blockchainChatAction } from "./actions/chat";
+import { ThirdwebNebulaApiService } from "./services/ThirdwebNebulaApiService.ts";
 export * as actions from "./actions/index.ts";
 
 export const thirdwebPlugin: Plugin = {
@@ -9,4 +10,5 @@ export const thirdwebPlugin: Plugin = {
     actions: [blockchainChatAction],
     evaluators: [],
     providers: [],
+    services: [new ThirdwebNebulaApiService()],
 };
