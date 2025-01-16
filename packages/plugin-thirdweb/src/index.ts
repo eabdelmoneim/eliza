@@ -1,7 +1,7 @@
 import { Plugin } from "@elizaos/core";
 import { blockchainChatAction } from "./actions/chat";
-import { ThirdwebNebulaApiService } from "./services/ThirdwebNebulaApiService.ts";
-export * as actions from "./actions/index.ts";
+import { ThirdwebNebulaApiService } from "./services/ThirdwebNebulaApiService";
+export * as actions from "./actions/index";
 
 export const thirdwebPlugin: Plugin = {
     name: "PROVIDE_BLOCKCHAIN_DATA",

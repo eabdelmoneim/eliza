@@ -5,53 +5,11 @@ import {
     IAgentRuntime,
     Memory,
     State,
+    ServiceType,
     type Action,
 } from "@elizaos/core";
+import { ThirdwebNebulaApiService } from "../services/ThirdwebNebulaApiService";
 
-const BASE_URL = "https://nebula-api.thirdweb.com";
-
-// If chat is a stream, wait for stream to complete before returning response
-async function handleStreamResponse(
-    response: Response
-): Promise<ReadableStream> {
-    elizaLogger.log("Starting stream response handling");
-    const reader = response.body?.getReader();
-    if (!reader) {
-        elizaLogger.error("No readable stream available");
-        throw new Error("No readable stream available");
-    }
-
-    return new ReadableStream({
-        async start(controller) {
-            try {
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) {
-                        elizaLogger.log("Stream reading completed");
-                        break;
-                    }
-
-                    const events = new TextDecoder()
-                        .decode(value)
-                        .split("\n\n");
-                    elizaLogger.debug(
-                        `Processing ${events.length} stream events`
-                    );
-                    for (const event of events) {
-                        if (!event.trim()) continue;
-                        controller.enqueue(event);
-                    }
-                }
-            } finally {
-                reader.releaseLock();
-                controller.close();
-                elizaLogger.log("Stream controller closed");
-            }
-        },
-    });
-}
-
-// Process & return a response to the current message with thirdweb Nebula
 export const blockchainChatAction: Action = {
     name: "BLOCKCHAIN_CHAT",
     similes: [
@@ -69,9 +27,9 @@ export const blockchainChatAction: Action = {
         "BLOCKCHAIN_TRANSACTION_DETAILS",
     ],
     description:
-        "Call this to read data from the blockchain using natural language: \n" +
-        "1) query and retrieve information for a blockchain network, \n" +
-        "2) retrieve data through a smart contract function given a contract address, \n" +
+        "Call this to chat to get information, data and prices from a blockchain using natural language.  You can: \n" +
+        "1) query and retrieve information on block and transaction data for a blockchain network, \n" +
+        "2) read contract data from a blockchain, \n" +
         "3) get token price and exchange rate for tokens or cryptocurrencies, \n" +
         "4) detailed transaction information from the blockchain, \n" +
         "5) get wallet balances for tokens and NFTs, \n" +
@@ -91,65 +49,28 @@ export const blockchainChatAction: Action = {
         _state: State,
         _options: any,
         callback: HandlerCallback
-    ): Promise<any> => {
+    ): Promise<string> => {
         try {
             elizaLogger.log("Starting blockchain chat handler");
-            const secretKey =
-                runtime.getSetting("THIRDWEB_SECRET_KEY") ??
-                process.env.THIRDWEB_SECRET_KEY;
 
-            if (!secretKey) {
-                elizaLogger.error("THIRDWEB_SECRET_KEY not configured");
-                throw new Error("THIRDWEB_SECRET_KEY is not configured");
+            const blockchainService = runtime.services.get(
+                "nebula" as ServiceType
+            ) as ThirdwebNebulaApiService;
+
+            if (!blockchainService) {
+                elizaLogger.error("Nebula blockchain service is not available");
+                throw new Error("Nebula blockchain service is not available");
             }
 
-            const request = {
-                message: message.content.text,
-                stream: false,
-            };
+            const response = await blockchainService.processChat(
+                message.content.text
+            );
 
-            elizaLogger.log("NEBULA CHAT REQUEST: ", request);
-
-            elizaLogger.debug("Sending request to Nebula API");
-            const response = await fetch(`${BASE_URL}/chat`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "x-secret-key": secretKey,
-                },
-                body: JSON.stringify(request),
-            });
-            elizaLogger.debug("Received response from Nebula API");
-
-            if (!request.stream) {
-                const text = await response.text();
-                elizaLogger.debug("Raw response text:", text);
-
-                try {
-                    const cleanedText = text.trim().split("\n").pop() || text;
-                    const parsed = JSON.parse(cleanedText);
-                    elizaLogger.log("Successfully parsed response:", parsed);
-
-                    console.log(parsed.message);
-
-                    callback({ text: parsed.message, content: {} });
-
-                    return parsed.message;
-                } catch (parseError) {
-                    elizaLogger.error("Parse error details:", parseError);
-                    elizaLogger.error(
-                        "Failed to parse JSON response. Raw text:",
-                        text
-                    );
-                    return { text: text };
-                }
-            }
-
-            elizaLogger.log("Handling streaming response");
-            return handleStreamResponse(response);
+            callback({ text: response, content: {} });
+            return response;
         } catch (error) {
-            elizaLogger.error("Blockchain chat failed:", error);
-            throw new Error(`Blockchain chat failed: ${error.message}`);
+            elizaLogger.error("Nebula blockchain chat failed:", error);
+            throw new Error(`Nebula blockchain chat failed: ${error.message}`);
         }
     },
     examples: [
@@ -158,11 +79,10 @@ export const blockchainChatAction: Action = {
                 user: "{{user1}}",
                 content: {
                     text: "What's the ETH balance of vitalik.eth?",
-                    action: "BLOCKCHAIN_CHAT",
                 },
             },
             {
-                user: "{{user2}}",
+                user: "{{agent}}",
                 content: {
                     text: "The current ETH balance of vitalik.eth (0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045) is 1,123.45 ETH",
                     action: "BLOCKCHAIN_CHAT",
@@ -173,30 +93,13 @@ export const blockchainChatAction: Action = {
             {
                 user: "{{user1}}",
                 content: {
-                    text: "send 0.1 ETH to 0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
-                    action: "BLOCKCHAIN_CHAT",
+                    text: "What is the latest block number on Base?",
                 },
             },
             {
-                user: "{{user2}}",
+                user: "{{agent}}",
                 content: {
-                    text: "I'll help you send 0.1 ETH. Please review and sign the transaction.",
-                    action: "BLOCKCHAIN_CHAT",
-                },
-            },
-        ],
-        [
-            {
-                user: "{{user1}}",
-                content: {
-                    text: "Show me the floor price of BAYC",
-                    action: "BLOCKCHAIN_CHAT",
-                },
-            },
-            {
-                user: "{{user2}}",
-                content: {
-                    text: "The current floor price for BAYC is 32.5 ETH with 3 sales in the last 24h",
+                    text: "The latest block number on Base is 1234567890",
                     action: "BLOCKCHAIN_CHAT",
                 },
             },
@@ -205,14 +108,27 @@ export const blockchainChatAction: Action = {
             {
                 user: "{{user1}}",
                 content: {
-                    text: "Show me my recent transactions",
-                    action: "BLOCKCHAIN_CHAT",
+                    text: "What is the current price of Arb?",
                 },
             },
             {
-                user: "{{user2}}",
+                user: "{{agent}}",
                 content: {
-                    text: "Here are your recent transactions: 1. Sent 1.5 ETH 2. Swapped tokens on Uniswap 3. Received 0.5 ETH",
+                    text: "The current floor price for Arb is 3.25",
+                },
+            },
+        ],
+        [
+            {
+                user: "{{user1}}",
+                content: {
+                    text: "Show me tx with hash 0x1234567890 on Arbitrum Sepolia",
+                },
+            },
+            {
+                user: "{{agent}}",
+                content: {
+                    text: "Here is the transaction details for 0x1234567890 on Arbitrum Sepolia: 1. Sent 1.5 ETH 2. Swapped tokens on Uniswap 3. Received 0.5 ETH",
                     action: "BLOCKCHAIN_CHAT",
                 },
             },

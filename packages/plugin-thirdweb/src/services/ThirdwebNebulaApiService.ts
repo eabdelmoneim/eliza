@@ -4,6 +4,7 @@ import {
     IAgentRuntime,
     Memory,
     State,
+    elizaLogger,
 } from "@elizaos/core";
 
 export class ThirdwebNebulaApiService implements Service {
@@ -64,6 +65,8 @@ export class ThirdwebNebulaApiService implements Service {
             await this.initialize();
         }
 
+        elizaLogger.log("Nebula processing chat: ", message);
+
         const response = await fetch(`${this.API_URL}/chat`, {
             method: "POST",
             headers: {
@@ -83,7 +86,7 @@ export class ThirdwebNebulaApiService implements Service {
         }
 
         const data = await response.json();
-        //console.log("Chat response:", data);
+        elizaLogger.log("Nebula response:", data);
         return data?.message;
     }
 

@@ -44,10 +44,9 @@ import path from "path";
 import { fileURLToPath } from "url";
 import yargs from "yargs";
 import { ramiCharacter } from "./ramiCharacter";
-import { ensDataProvider } from "./ensDataProvider";
-import { nftOwnershipProvider } from "./nftOwnershipProvider";
-import { ensDataEvaluator } from "./ensDataEvaluator";
-import { nftOwnershipEvaluator } from "./nftOwnershipEvaluator";
+import { ensDataProvider } from "./providers/ensDataProvider";
+import { nftOwnershipProvider } from "./providers/nftOwnershipProvider";
+import { ensDataEvaluator } from "./evaluators/ensDataEvaluator";
 
 const __filename = fileURLToPath(import.meta.url); // get the resolved path to the file
 const __dirname = path.dirname(__filename); // get the name of the directory
@@ -629,11 +628,11 @@ export async function createAgent(
         databaseAdapter: db,
         token,
         modelProvider: character.modelProvider,
-        evaluators: [ensDataEvaluator, nftOwnershipEvaluator],
+        evaluators: [ensDataEvaluator /*, nftOwnershipEvaluator*/],
         character,
         // character.plugins are handled when clients are added
         plugins: [bootstrapPlugin, nodePlugin, thirdwebPlugin],
-        providers: [ensDataProvider /*, nftOwnershipProvider*/],
+        providers: [ensDataProvider, nftOwnershipProvider],
         actions: [],
         services: [],
         managers: [],
